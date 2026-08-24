@@ -25,8 +25,10 @@ Serves the face gallery at http://127.0.0.1:8790/ and exposes:
             "level":  0.0-1.0,       voice loudness while speaking
             "samples": [64 floats],  raw waveform snapshot (0s when quiet)
             "alert":  bool,          optional attention signal
-            "loading": bool}         true while the voice line plays its
+            "loading": bool,         true while the voice line plays its
                                      own thinking sound (we stay quiet)
+            "text":  str,            the reply text that's audible now
+            "text_ts": float}        when that caption was published
   /config  the merged ai-visualizer.json plus the list of installed
            faces, discovered by scanning the faces/ folder. Drop a new
            folder with an index.html into faces/ and it appears in the
@@ -39,6 +41,8 @@ voice line (backtalk writes them natively, github.com/jaredrhod/backtalk):
   .voice_waveform     JSON {ts, samples: [64 floats]} while audio plays
   .voice_loading_pid  exists while the voice line plays a thinking sound
   .voice_alert        optional: non-empty file = attention needed
+  .voice_reply_text   JSON {ts, text} caption of the reply chunk that
+                       just became audible
 
 Where the bus lives comes from "bus_dir" in ai-visualizer.json (default:
 this folder). Point it at your backtalk folder, or point backtalk's
@@ -136,7 +140,8 @@ def mock_bus():
             for i in range(64)
         ]
     return {"state": MOCK, "level": level, "samples": samples,
-            "alert": False, "loading": MOCK == "thinking"}
+            "alert": False, "loading": MOCK == "thinking",
+            "text": "", "text_ts": 0.0}
 
 
 def read_bus():
@@ -167,8 +172,16 @@ def read_bus():
     except OSError:
         alert = False
     loading = (BUS / ".voice_loading_pid").exists()
+    text, text_ts = "", 0.0
+    try:
+        payload = json.loads((BUS / ".voice_reply_text").read_text())
+        text = str(payload.get("text") or "")
+        text_ts = float(payload.get("ts") or 0)
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
     return {"state": state, "level": level, "samples": samples,
-            "alert": alert, "loading": loading}
+            "alert": alert, "loading": loading,
+            "text": text, "text_ts": text_ts}
 
 
 class Handler(BaseHTTPRequestHandler):

@@ -21,33 +21,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Face in the Code</title>
+<title>Morpheus</title>
 <style>
   @font-face{font-family:"VT323";src:url("../../assets/VT323-Regular.ttf")}
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;background:#000;overflow:hidden;cursor:none}
   canvas#stage{position:fixed;inset:0;width:100vw;height:100vh;display:block}
-  #caption{position:fixed;left:6%;right:6%;bottom:40%;text-align:center;
-    font-family:"VT323",monospace;color:#8fffb0;
-    text-shadow:0 0 8px rgba(0,255,120,.6);
-    font-size:clamp(16px,2.4vw,26px);line-height:1.3;
-    pointer-events:none;opacity:0;transition:opacity .3s;z-index:40}
-  #caption.show{opacity:1}
-  #typebar{position:fixed;left:6%;right:6%;bottom:8%;cursor:auto;
-    opacity:0;transition:opacity .3s;z-index:50}
-  #typebar.show{opacity:1}
-  #typebar input{width:100%;background:rgba(0,20,8,.55);
-    border:1px solid #1a5c34;color:#c8ffdc;
-    font-family:"VT323",monospace;font-size:20px;padding:8px 12px;
-    outline:none;border-radius:3px}
-  #typebar input::placeholder{color:#3a7050}
 </style>
 </head>
 <body>
 <canvas id="stage"></canvas>
-<div id="caption"></div>
-<div id="typebar"><input id="typeinput" type="text"
-     placeholder="type to Morpheus..." maxlength="2000" autocomplete="off"></div>
 <script src="../../core.js"></script>
 <script>
 "use strict";
@@ -83,7 +66,7 @@ const RAIN_PROFILE={idle:[1.0,.80],listening:[.55,.45],thinking:[2.6,1.0],speaki
 const FACE_ATTACK=700, FACE_RELEASE=1500;
 const THINKING_WORDS=["PROCESSING","THINKING","QUERYING MEMORY","COMPILING RESPONSE","RUNNING IT DOWN"];
 AV.ready(a=>{
-  document.title=a.name+" Face in the Code";
+  document.title=a.name+" · Morpheus";
 });
 
 // Rain glyph alphabet: half-width katakana (mirrored, per the film) + the
@@ -333,7 +316,7 @@ function drawRibbon(){
   micHist.push(AV.micLevel);
   const span=Math.max(60,W/6|0);
   if(micHist.length>span)micHist=micHist.slice(-span);
-  const base=H*.74|0, amp=H*.07|0, step=W/span;
+  const base=H*.88|0, amp=H*.07|0, step=W/span;
   ctx.fillStyle=`rgb(${AMBER[0]},${AMBER[1]},${AMBER[2]})`;
   for(let i=0;i<micHist.length;i++){
     const bh=Math.max(2,micHist[i]*amp|0);
@@ -374,54 +357,9 @@ function drawAlertFrame(){
   ctx.fillRect(0,0,8,H);ctx.fillRect(W-8,0,8,H);
 }
 
-/* ---------------- typed input + captions ----------------
-   Morpheus.app has no terminal, so this is the text door: type here,
-   Enter posts straight to backtalk's loopback text-in server and joins
-   the same queue a terminal's typed lines feed. Captions mirror
-   AV.replyText the moment each reply chunk becomes audible. Both bars
-   stay invisible until the mouse moves, so they never break the
-   screensaver read of idle rain. */
-const TEXTIN_PORT=8791;
-const typebar=document.getElementById("typebar");
-const typeinput=document.getElementById("typeinput");
-let typebarHideT=null;
-function showTypebar(){
-  typebar.classList.add("show");
-  clearTimeout(typebarHideT);
-  typebarHideT=setTimeout(()=>{
-    if(document.activeElement!==typeinput)typebar.classList.remove("show");
-  },4000);
-}
-addEventListener("mousemove",showTypebar);
-typeinput.addEventListener("focus",showTypebar);
-typeinput.addEventListener("keydown",e=>{
-  e.stopPropagation();               // 'f' while typing must not toggle fullscreen
-  if(e.key!=="Enter")return;
-  const text=typeinput.value.trim();
-  if(!text)return;
-  fetch(`http://127.0.0.1:${TEXTIN_PORT}/type`,{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({text})
-  }).catch(()=>{});
-  typeinput.value="";
-});
-
-const caption=document.getElementById("caption");
-let lastCapTs=0,capHideT=null;
-function updateCaption(){
-  if(AV.replyTextTs&&AV.replyTextTs!==lastCapTs){
-    lastCapTs=AV.replyTextTs;
-    caption.textContent=AV.replyText||"";
-    caption.classList.add("show");
-    clearTimeout(capHideT);
-    capHideT=setTimeout(()=>caption.classList.remove("show"),9000);
-  }
-}
-
 /* ---------------- frame ---------------- */
 function frame(dt){
   AV.tick(dt);
-  updateCaption();
   now+=dt;
   const state=AV.state;
   const tgt=state==="thinking"?1:0;

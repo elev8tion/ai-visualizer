@@ -31,6 +31,10 @@
      AV.samples    Float32Array(64), 0..1 normalized waveform ring
      AV.alert      bool, optional attention signal
      AV.micLevel   0..1 your microphone (only if init({mic:true}))
+     AV.replyText  str, caption of the reply chunk currently audible
+     AV.replyTextTs float, when that caption was published — a face
+                   diffs this against its own "last shown" to know a
+                   fresh line arrived, since replyText can repeat
      AV.name       display name from config ("JARVIS" by default)
      AV.label      the dotted chip label ("J.A.R.V.I.S.")
      AV.badge      optional handle from config ("" by default)
@@ -66,6 +70,7 @@ const AV = (() => {
   const A = {
     state: "idle", level: 0, env: 0, alert: false, micLevel: 0,
     samples: new Float32Array(64),
+    replyText: "", replyTextTs: 0,
     name: "JARVIS", label: "J.A.R.V.I.S.", badge: "",
     demo: DEMO, shot: SHOT, faces: [],
     _sndOn: true, _mic: false, _readyCbs: [], _ready: false,
@@ -149,6 +154,8 @@ const AV = (() => {
     A.state = raw.state || "idle";
     A.alert = !!raw.alert;
     A.level = raw.level || 0;
+    A.replyText = raw.text || "";
+    A.replyTextTs = raw.text_ts || 0;
 
     // adaptive envelope: normalize against a decaying peak, then ease
     // (attack 50ms, release 350ms) — motion code rides AV.env
